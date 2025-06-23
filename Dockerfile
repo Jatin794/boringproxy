@@ -1,30 +1,28 @@
-# --- Stage 1: The Builder ---
-# Use a modern, standard Go image to compile the application.
-FROM golang:1.22-alpine AS builder
+# Use a single, modern Go build environment. No multiple stages.
+FROM golang:1.22-alpine
 
-WORKDIR /src
+# Set the working directory for all subsequent commands.
+WORKDIR /app
+
+# Install necessary OS packages.
+# ca-certificates: Fixes the "x509" error.
+# git: Needed to ensure all build dependencies can be fetched.
+RUN apk --no-cache add ca-certificates git
+
+# Copy all source code into the working directory.
 COPY . .
 
-# Build a static, CGO-disabled binary.
-RUN CGO_ENABLED=0 go build -o /boringproxy .
+# Build the boringproxy binary. The output will be placed in the current
+# working directory (/app/boringproxy). This is a simple, direct build.
+RUN CGO_ENABLED=0 go build -o boringproxy ./cmd/boringproxy
 
-# --- Stage 2: The Final Image ---
-# Use Alpine as the base. It's minimal but includes essential OS tools.
-FROM alpine:latest
-
-# Install the CA certificates bundle to fix the "x509" error.
-RUN apk --no-cache add ca-certificates
-
-# Copy the compiled binary from the builder stage.
-COPY --from=builder /boringproxy /usr/local/bin/boringproxy
-
-# --- THE FIX ---
-# Add execute permissions to the binary. This solves the "permission denied" error.
-RUN chmod +x /usr/local/bin/boringproxy
-
-# Create a non-root user to fix the "Unable to get current user" error.
+# --- Security and User Context ---
+# Create a non-root user to run the application securely.
 RUN adduser -D boring
+# Switch to this non-root user. This fixes the "Unable to get user" error.
 USER boring
 
-# Use the absolute path for the entrypoint. This solves the "not found in $PATH" error.
-ENTRYPOINT ["/usr/local/bin/boringproxy"]
+# --- Execution ---
+# Set the entrypoint using an absolute path to the binary we just built.
+# This is unambiguous and fixes any potential PATH or permission issues.
+ENTRYPOINT ["/app/boringproxy"]
