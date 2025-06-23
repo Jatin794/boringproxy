@@ -15,14 +15,16 @@ FROM alpine:latest
 # Install the CA certificates bundle to fix the "x509" error.
 RUN apk --no-cache add ca-certificates
 
-# Copy the compiled binary from the builder stage into a standard location.
+# Copy the compiled binary from the builder stage.
 COPY --from=builder /boringproxy /usr/local/bin/boringproxy
+
+# --- THE FIX ---
+# Add execute permissions to the binary. This solves the "permission denied" error.
+RUN chmod +x /usr/local/bin/boringproxy
 
 # Create a non-root user to fix the "Unable to get current user" error.
 RUN adduser -D boring
 USER boring
 
-# --- THE FIX ---
-# Use an ABSOLUTE PATH for the entrypoint, just like your reference code did.
-# This removes any reliance on the $PATH variable.
+# Use the absolute path for the entrypoint. This solves the "not found in $PATH" error.
 ENTRYPOINT ["/usr/local/bin/boringproxy"]
