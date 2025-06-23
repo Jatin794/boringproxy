@@ -1,32 +1,26 @@
-FROM golang:1.17-alpine3.15 as builder
-LABEL boringproxy=builder
+# --- Stage 1: The Builder ---
+# Use a modern, standard Go image to compile the application.
+FROM golang:1.22-alpine AS builder
 
-ARG VERSION
-ARG GOOS="linux"
-ARG GOARCH="amd64"
-ARG BRANCH="master"
-ARG REPO="https://github.com/boringproxy/boringproxy.git"
-ARG ORIGIN='local'
-
-WORKDIR /build
-
-RUN apk add git
-
-RUN if [[ "ORIGIN" == 'remote' ]] ; then git clone --depth 1 --branch "${BRANCH}" ${REPO}; fi
-
-COPY go.* ./
-RUN go mod download
+WORKDIR /src
 COPY . .
 
-RUN cd cmd/boringproxy && CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} \
-	go build -ldflags "-X main.Version=${VERSION}" \
-	-o boringproxy
+# Build a static, CGO-disabled binary. This is correct.
+RUN CGO_ENABLED=0 go build -o /boringproxy .
 
-FROM scratch
-EXPOSE 80 443
-WORKDIR /storage
+# --- Stage 2: The Final Image ---
+# Use Alpine as the base. It's minimal but includes essential OS tools.
+FROM alpine:latest
 
-COPY --from=builder /build/cmd/boringproxy/boringproxy /
+# FIX #1: Install the CA certificates bundle to fix the "x509" error.
+RUN apk --no-cache add ca-certificates
 
-ENTRYPOINT ["/boringproxy"]
-CMD ["version"]
+# Copy the compiled binary from the builder stage.
+COPY --from=builder /boringproxy /usr/local/bin/
+
+# FIX #2: Create a non-root user and switch to it. This fixes the "Unable to get current user" error.
+RUN adduser -D boring
+USER boring
+
+# Set the entrypoint to the application.
+ENTRYPOINT ["boringproxy"]
