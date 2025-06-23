@@ -1,8 +1,74 @@
-version: '3.5'
+version: '3.8'
+
 services:
   boringproxy:
-    build: ./
+    # Build the image from the source code in the repository.
+    build: .
     image: boringproxy
+    container_name: boringproxy-nscswcwo0skw0og8g4k4woo8-181839333464
+    restart: unless-stopped
+
+    # The correct command for the modern, self-built binary.
+    command:
+      - "server"
+      - "-behind-proxy"
+      - "-admin-domain"
+      - "admin.tunnel.183816.xyz"
+      - "-http-port"
+      - "8000"
+      - "-tunnel-port"
+      - "8443"
+      - "-db-dir"
+      - "/data"
+
+    # Correct port mapping: No 80/443 conflict, only exposes the tunnel port.
     ports:
-      - "80:80"
-      - "443:443"
+      - '8443:8443'
+
+    labels:
+      # --- Existing Coolify Labels ---
+      - coolify.managed=true
+      - coolify.version=4.0.0-beta.419
+      - coolify.applicationId=3
+      - coolify.type=application
+      - coolify.name=boringproxy-nscswcwo0skw0og8g4k4woo8-181839333464
+      - coolify.resourceName=boringproxy
+      - coolify.projectName=main
+      - coolify.serviceName=boringproxy
+      - coolify.environmentName=production
+      - coolify.pullRequestId=0
+      
+      # --- Traefik Instructions ---
+      - "traefik.enable=true"
+      # This label explicitly tells Traefik to use the Coolify-generated network to connect.
+      - "traefik.docker.network=nscswcwo0skw0og8g4k4woo8"
+      - "traefik.http.routers.boringproxy-admin.rule=Host(`admin.tunnel.183816.xyz`)"
+      - "traefik.http.routers.boringproxy-admin.entrypoints=websecure"
+      - "traefik.http.routers.boringproxy-admin.service=boringproxy-admin-svc"
+      - "traefik.http.routers.boringproxy-admin.tls.certresolver=myresolver" # Replace with your resolver name
+      - "traefik.http.services.boringproxy-admin-svc.loadbalancer.server.port=8000"
+
+    # The container is only attached to the network Coolify created for it.
+    networks:
+      - nscswcwo0skw0og8g4k4woo8
+
+    # Persistent volume for user and tunnel data.
+    volumes:
+      - boringproxy-data:/data
+
+    environment:
+      COOLIFY_BRANCH: '"master"'
+      COOLIFY_RESOURCE_UUID: nscswcwo0skw0og8g4k4woo8
+      COOLIFY_CONTAINER_NAME: boringproxy-nscswcwo0skw0og8g4k4woo8-181839333464
+
+# Top-level definitions for the volume and network used.
+volumes:
+  boringproxy-data:
+
+networks:
+  nscswcwo0skw0og8g4k4woo8:
+    name: nscswcwo0skw0og8g4k4woo8
+    external: true
+
+configs: {  }
+secrets: {  }
