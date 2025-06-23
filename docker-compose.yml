@@ -2,13 +2,16 @@ version: '3.8'
 
 services:
   boringproxy:
-    # Build the image from the source code in the repository.
+    # 1. Build from Source: The only reliable way to get a working image,
+    # as we discovered the public images are broken or outdated.
     build: .
-    image: boringproxy
-    container_name: boringproxy-nscswcwo0skw0og8g4k4woo8-181839333464
+    
+    # 2. Clean Container Name: A simple, predictable name.
+    container_name: boringproxy
     restart: unless-stopped
 
-    # The correct command for the modern, self-built binary.
+    # 3. Correct Command: This uses the legacy "-ssh-server-port" flag,
+    # which is what your build environment has proven to require, based on your logs.
     command:
       - "server"
       - "-behind-proxy"
@@ -16,26 +19,31 @@ services:
       - "admin.tunnel.183816.xyz"
       - "-http-port"
       - "8000"
-      - "-tunnel-port"
+      - "-ssh-server-port"
       - "8443"
       - "-db-dir"
       - "/data"
 
-    # Correct port mapping: No 80/443 conflict, only exposes the tunnel port.
+    # 4. Correct Port Mapping: Exposes only the dedicated tunnel port (8443)
+    # to avoid conflicts with Traefik on ports 80/443.
     ports:
       - '8443:8443'
 
-    labels:
-      # --- Traefik Instructions ---
-      - "traefik.enable=true"
-      # This label explicitly tells Traefik to use the Coolify-generated network to connect.
-      - "traefik.docker.network=nscswcwo0skw0og8g4k4woo8"
-      - "traefik.http.routers.boringproxy-admin.rule=Host(`admin.tunnel.183816.xyz`)"
-      - "traefik.http.routers.boringproxy-admin.entrypoints=websecure"
-      - "traefik.http.routers.boringproxy-admin.service=boringproxy-admin-svc"
-      - "traefik.http.routers.boringproxy-admin.tls.certresolver=myresolver" # Replace with your resolver name
-      - "traefik.http.services.boringproxy-admin-svc.loadbalancer.server.port=8000"
+    # 5. Persistent Storage: A named volume to store all user and tunnel data.
+    volumes:
+      - boringproxy_data:/data
 
+    # 7. Traefik Labels: The essential instructions for your Traefik instance.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.boringproxy.rule=Host(`admin.tunnel.183816.xyz`)"
+      - "traefik.http.routers.boringproxy.entrypoints=websecure"
+      - "traefik.http.routers.boringproxy.tls.certresolver=myresolver" # IMPORTANT: Replace with your resolver name
+      - "traefik.http.services.boringproxy.loadbalancer.server.port=8000"
+
+# --- Top-Level Definitions ---
+# These declare the external resources the service depends on.
 volumes:
-  boringproxy-data:
+  boringproxy_data:
 
