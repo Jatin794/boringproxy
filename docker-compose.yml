@@ -9,12 +9,10 @@ services:
     command:
       - "server"
       - "-behind-proxy"
-      # Changed admin UI port to 8100 as requested
       - "-https-port"
       - "8100"
       - "-admin-domain"
       - "admin.tunnel.183816.xyz"
-      # Using the legacy flag your build requires
       - "-ssh-server-port"
       - "8443"
       - "-db-dir"
@@ -26,24 +24,19 @@ services:
     volumes:
       - boringproxy_data:/data
 
-    networks:
-      - proxy
+    # The 'networks' key has been removed from the service. Docker Compose will
+    # automatically connect this container to the new default network it creates.
 
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=proxy"
+      # The 'traefik.docker.network' label is removed, as we are no longer
+      # referencing the 'proxy' network.
       - "traefik.http.routers.boringproxy.rule=Host(`admin.tunnel.183816.xyz`)"
       - "traefik.http.routers.boringproxy.entrypoints=websecure"
-      # Fixed resolver name as requested
       - "traefik.http.routers.boringproxy.tls.certresolver=letsencrypt"
-      # Pointing Traefik to the new admin port
       - "traefik.http.services.boringproxy.loadbalancer.server.port=8100"
-      # Telling Traefik to use HTTPS for the internal connection
       - "traefik.http.services.boringproxy.loadbalancer.server.scheme=https"
 
 volumes:
   boringproxy_data:
 
-networks:
-  proxy:
-    external: true
