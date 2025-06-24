@@ -37,9 +37,20 @@ services:
       - "traefik.http.routers.boringproxy.rule=Host(`admin.tunnel.183816.xyz`)"
       - "traefik.http.routers.boringproxy.entrypoints=websecure"
       - "traefik.http.routers.boringproxy.tls.certresolver=letsencrypt"
+      
+      # 1. This label creates a new middleware called a "ServersTransport". We'll name it 'boring-transport'.
+      #    It sets the 'insecureSkipVerify' option to true.
+      - "traefik.http.middlewares.boring-transport.serversTransport.insecureSkipVerify=true"
+      
+      # --- Service Configuration ---
+      # 2. These labels define the boringproxy service as before.
       - "traefik.http.services.boringproxy.loadbalancer.server.port=8100"
       - "traefik.http.services.boringproxy.loadbalancer.server.scheme=https"
 
+      # 3. This new label attaches our custom transport to the service. Traefik will now
+      #    use these settings when connecting to the boringproxy backend.
+      - "traefik.http.services.boringproxy.loadbalancer.serversTransport=boring-transport@docker"
+      
       # --- Coolify Management Labels ---
       - "coolify.managed=true"
       - "coolify.applicationId=3"
