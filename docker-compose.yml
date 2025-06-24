@@ -2,48 +2,48 @@ version: '3.8'
 
 services:
   boringproxy:
-    # 1. Build from Source: The only reliable way to get a working image,
-    # as we discovered the public images are broken or outdated.
     build: .
-    
-    # 2. Clean Container Name: A simple, predictable name.
     container_name: boringproxy
     restart: unless-stopped
 
-    # 3. Correct Command: This uses the legacy "-ssh-server-port" flag,
-    # which is what your build environment has proven to require, based on your logs.
     command:
       - "server"
       - "-behind-proxy"
+      # Changed admin UI port to 8100 as requested
+      - "-https-port"
+      - "8100"
       - "-admin-domain"
       - "admin.tunnel.183816.xyz"
-      - "-http-port"
-      - "8000"
+      # Using the legacy flag your build requires
       - "-ssh-server-port"
       - "8443"
       - "-db-dir"
       - "/data"
 
-    # 4. Correct Port Mapping: Exposes only the dedicated tunnel port (8443)
-    # to avoid conflicts with Traefik on ports 80/443.
     ports:
       - '8443:8443'
 
-    # 5. Persistent Storage: A named volume to store all user and tunnel data.
     volumes:
       - boringproxy_data:/data
 
-    # 7. Traefik Labels: The essential instructions for your Traefik instance.
+    networks:
+      - proxy
+
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
       - "traefik.http.routers.boringproxy.rule=Host(`admin.tunnel.183816.xyz`)"
       - "traefik.http.routers.boringproxy.entrypoints=websecure"
-      - "traefik.http.routers.boringproxy.tls.certresolver=myresolver" # IMPORTANT: Replace with your resolver name
-      - "traefik.http.services.boringproxy.loadbalancer.server.port=8000"
+      # Fixed resolver name as requested
+      - "traefik.http.routers.boringproxy.tls.certresolver=letsencrypt"
+      # Pointing Traefik to the new admin port
+      - "traefik.http.services.boringproxy.loadbalancer.server.port=8100"
+      # Telling Traefik to use HTTPS for the internal connection
+      - "traefik.http.services.boringproxy.loadbalancer.server.scheme=https"
 
-# --- Top-Level Definitions ---
-# These declare the external resources the service depends on.
 volumes:
   boringproxy_data:
 
+networks:
+  proxy:
+    external: true
