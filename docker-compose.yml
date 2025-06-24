@@ -50,6 +50,12 @@ services:
       - "traefik.http.services.boringproxy.loadbalancer.server.port=8100"
       - "traefik.http.services.boringproxy.loadbalancer.server.scheme=https"
       - "traefik.http.services.boringproxy.loadbalancer.serverstransport=boring-transport@docker"
+
+      # This tells the health check to use the same settings as a real request.
+      - "traefik.http.services.boringproxy.loadbalancer.healthcheck.path=/"
+      - "traefik.http.services.boringproxy.loadbalancer.healthcheck.scheme=https"
+      # This is the critical line that fixes the SNI mismatch for the health check.
+      - "traefik.http.services.boringproxy.loadbalancer.healthcheck.headers.Host=admin.tunnel.183816.xyz"
       
       # --- ServersTransport Definition ---
       # This tells Traefik to trust the self-signed certificate from the boringproxy backend.
