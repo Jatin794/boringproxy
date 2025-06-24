@@ -7,54 +7,54 @@ services:
     container_name: boringproxy
     restart: unless-stopped
 
-    # The command with all necessary flags for your environment.
+    # The correct command for the binary your environment produces.
     command:
       - "server"
       - "-behind-proxy"
-      # Using port 8100 for the internal admin UI as you requested.
       - "-https-port"
       - "8100"
       - "-admin-domain"
       - "admin.tunnel.183816.xyz"
-      # Using the legacy flag your build environment requires.
-      - "-ssh-server-port"
+      - "-ssh-server-port" 
       - "8443"
       - "-db-dir"
       - "/data"
 
-    # Exposes only the dedicated tunnel port, not the internal admin port.
     ports:
       - '8443:8443'
 
-    # A persistent volume for your user and tunnel data.
     volumes:
       - boringproxy_data:/data
 
-    # --- The Final Network Fix ---
-    # Connects this service to the existing 'coolify' network.
+    # This connects the service to the network that Traefik is on.
     networks:
       - coolify_net
-
-    # All labels are configured to work with Traefik over the 'coolify' network.
+    
     labels:
+      # --- Manual Traefik Labels ---
       - "traefik.enable=true"
-      # Explicitly tells Traefik which network to use to find this container.
       - "traefik.docker.network=coolify"
       - "traefik.http.routers.boringproxy.rule=Host(`admin.tunnel.183816.xyz`)"
       - "traefik.http.routers.boringproxy.entrypoints=websecure"
-      # Using the correct certificate resolver name we found.
       - "traefik.http.routers.boringproxy.tls.certresolver=letsencrypt"
-      # Tells Traefik to connect to the correct internal port.
       - "traefik.http.services.boringproxy.loadbalancer.server.port=8100"
-      # Tells Traefik to use HTTPS for the internal connection.
       - "traefik.http.services.boringproxy.loadbalancer.server.scheme=https"
+
+      # --- Coolify Management Labels ---
+      - "coolify.managed=true"
+      - "coolify.applicationId=3"
+      - "coolify.type=application"
+      - "coolify.resourceName=boringproxy-git"
+      - "coolify.projectName=main"
+      - "coolify.serviceName=boringproxy-git"
+      - "coolify.environmentName=production"
 
 volumes:
   boringproxy_data:
 
 networks:
-  # This section defines 'coolify_net' as an alias for the existing external
-  # network named 'coolify', which your coolify-proxy (Traefik) is on[2][5].
+  # This section correctly defines 'coolify_net' as an alias for the
+  # existing external network named 'coolify'.
   coolify_net:
     name: coolify
     external: true
